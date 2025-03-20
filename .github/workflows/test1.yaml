@@ -1,0 +1,46 @@
+name: verify-script-run
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: 
+            - main
+            - '*'
+    workflow_dispatch:
+
+jobs:
+    docker-tag-push-test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Set up docker registry
+              run: |
+                git clone https://github.com/Anirudh-RG/automate-docker-tag-push
+                cd automate-docker-tag-push
+                echo | cat run.sh > test-scripter.sh
+                chmod +x test-scripter.sh
+                sudo mv test-scripter.sh /usr/local/bin/test-scripter.sh
+            - name: Configure owner
+              run: |
+                echo "OWNER=localhost:5000" > ~/.rundocker_config
+                cat ~/.rundocker_config
+
+            - name: Pull nginx:latest
+              run: docker pull nginx:latest
+
+            - name: Run Tag & Push Script
+              run: |
+                cd automate-docker-tag-push
+                /usr/local/bin/test-scripter.sh nginx:latest nginx
+                
+            - name: Run Container from Local Registry
+              run: |
+                docker run -d -p 80:80 localhost:5000/nginx:latest
+                docker ps
+                
+            - name: Verify Running Container
+              run: |
+                curl -I http://localhost
+    
